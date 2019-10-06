@@ -1,0 +1,34 @@
+{
+    "name": "khooz/php-socket",
+    "type": "library",
+    "description": "A wrapper for sockets",
+    "keywords": [
+        "socket",
+        "networking"
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^7.3"
+    },
+    "authors": [
+        {
+            "name": "Mustafa Talaeezadeh Khouzani",
+            "email": "brother.t@live.com"
+        }
+    ],
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "autoload": {
+        "files": [
+            "src/Utilities/definitions"
+        ],
+        "psr-4": {
+            "Khooz\\Socket\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
