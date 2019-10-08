@@ -23,7 +23,7 @@
     },
     "autoload": {
         "files": [
-            "src/Utilities/definitions"
+            "src/Utilities/definitions.php"
         ],
         "psr-4": {
             "Khooz\\Socket\\": "src/"

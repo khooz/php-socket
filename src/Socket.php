@@ -9,6 +9,7 @@ namespace Khooz\Socket;
 use Khooz\Socket\Exceptions\InvalidInetAddressException;
 use Khooz\Socket\Exceptions\InvalidProtocolException;
 use Khooz\Socket\Exceptions\InvalidSocketException;
+use Khooz\Socket\Utilities\INETADRR;
 
 /**
  * Socket class
@@ -19,42 +20,49 @@ class Socket
 {
 
 	/**
-	 * Undocumented variable
+	 * Binding address
 	 *
 	 * @var InetAddr
 	 */
-	protected $inetAddr;
+	protected $address;
 
 	/**
-	 * Undocumented variable
+	 * Resource underlying the socket
 	 *
 	 * @var resource
 	 */
 	protected $resource;
 
 	/**
-	 * Undocumented variable
+	 * Protocol
 	 *
 	 * @var integer
 	 */
 	protected $protocol;
 
 	/**
-	 * Undocumented variable
+	 * Socket type
 	 *
 	 * @var integer
 	 */
 	protected $sockType;
 
 	/**
-	 * Undocumented variable
+	 * Remote connection address
+	 *
+	 * @var InetAddr
+	 */
+	protected $remote;
+
+	/**
+	 * Dynamic attributes
 	 *
 	 * @var array
 	 */
 	protected $attributes;
 
 	/**
-	 * Undocumented variable
+	 * Mapping protocols to socket types
 	 *
 	 * @var array
 	 */
@@ -65,7 +73,7 @@ class Socket
 	];
 
 	/**
-	 * Undocumented variable
+	 * Mapping socket types to protocols
 	 *
 	 * @var array
 	 */
@@ -76,7 +84,7 @@ class Socket
 	];
 
 	/**
-	 *
+	 * Setter for $address
 	 *
 	 * @param InetAddr
 	 *
@@ -84,11 +92,11 @@ class Socket
 	 */
 	protected function setInetAddr(InetAddr & $value) : InetAddr
 	{
-		return $this->inetAddr	= $value;
+		return $this->address	= $value;
 	}
 
 	/**
-	 *
+	 * Setter for $resource
 	 *
 	 * @param resource
 	 *
@@ -105,7 +113,7 @@ class Socket
 	}
 
 	/**
-	 *
+	 * Setter for $protocol
 	 *
 	 * @param integer
 	 *
@@ -124,7 +132,7 @@ class Socket
 	}
 
 	/**
-	 *
+	 * Setter for $sockType
 	 *
 	 * @param integer
 	 *
@@ -142,17 +150,17 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Getter for $address
 	 *
 	 * @return InetAddr
 	 */
 	protected function getInetAddr() : InetAddr
 	{
-		return $this->inetAddr;
+		return $this->address;
 	}
 
 	/**
-	 *
+	 * Getter for $resource
 	 *
 	 * @return resource
 	 */
@@ -162,7 +170,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Getter for $protocol
 	 *
 	 * @return integer
 	 */
@@ -172,7 +180,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Getter for $sockType
 	 *
 	 * @return integer
 	 */
@@ -182,7 +190,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Creates a new socket and binds to the $address
 	 *
 	 * @param InetAddr $address
 	 * @param integer $protocol
@@ -198,7 +206,7 @@ class Socket
 		{
 			$this->setInetAddr($address);
 		}
-		if (empty($this->inetAddr) || empty($this->inetAddr->version))
+		if (empty($this->address) || empty($this->address->version))
 		{
 			throw new InvalidInetAddressException();
 		}
@@ -212,7 +220,7 @@ class Socket
 			throw new InvalidProtocolException();
 		}
 
-		if (($this->resource = @socket_create($this->inetAddr->version, $this->sockType, $this->protocol)) === false)
+		if (($this->resource = @socket_create($this->address->version, $this->sockType, $this->protocol)) === false)
 		{
 			$this->resource	= null;
 			$error			= socket_last_error();
@@ -228,14 +236,14 @@ class Socket
 
 
 	/**
-	 * Undocumented function
+	 * Binding a socket to $address
 	 *
 	 * @throws InvalidSocketException
 	 * @return Socket
 	 */
 	protected function bind() : Socket
 	{
-		if (@socket_bind($this->resource, $this->inetAddr->address, $this->inetAddr->port) === false)
+		if (@socket_bind($this->resource, $this->address->address, $this->address->port) === false)
 		{
 			$error	= socket_last_error($this->resource);
 			socket_clear_error($this->resource);
@@ -248,7 +256,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Starts listening to a socket
 	 *
 	 * @throws InvalidSocketException
 	 * @return Socket
@@ -267,7 +275,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Accepting new connection
 	 *
 	 * @param integer $blocking
 	 * @param callable $callback
@@ -275,7 +283,7 @@ class Socket
 	 * @throws InvalidSocketException
 	 * @return mixed
 	 */
-	public function accept(int $blocking = SOCKET_BLOCK, callable $callback) : mixed
+	public function accept(int $blocking = SOCKET_BLOCK, callable $callback)
 	{
 		switch ($blocking)
 		{
@@ -291,12 +299,19 @@ class Socket
 		if (($newsock = @socket_accept($this->resource)) === false) {
 			$error	= socket_last_error($this->resource);
 			socket_clear_error($this->resource);
-			throw new InvalidSocketException(
-				"socket_accept: ($error) " . socket_strerror($error)
-				, $error
-			);
+			if ($error)
+			{
+				throw new InvalidSocketException(
+					"socket_accept: ($error) " . socket_strerror($error)
+					, $error
+				);
+			}
+			else if ($blocking === SOCKET_NONBLOCK)
+			{
+				return;
+			}
 		}
-		$sock = new Socket($this->inetAddr, $this->protocol);
+		$sock = new Socket($this->address, $this->protocol);
 		$sock->setResource($newsock);
 		$retval = call_user_func_array($callback, [&$sock]);
 		if (get_resource_type($sock->resource) === "Socket") {
@@ -306,7 +321,7 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Connecting to a remote address
 	 *
 	 * @param InetAddr $address
 	 * @param integer $protocol
@@ -322,7 +337,7 @@ class Socket
 		{
 			$this->setInetAddr($address);
 		}
-		if (empty($this->inetAddr) || (empty($this->inetAddr->address) && empty($this->inetAddr->port)))
+		if (empty($this->address) || (empty($this->address->address) && empty($this->address->port)))
 		{
 			throw new InvalidInetAddressException();
 		}
@@ -334,7 +349,7 @@ class Socket
 		{
 			throw new InvalidProtocolException();
 		}
-		if (@socket_connect($this->resource, $this->inetAddr->address, $this->inetAddr->port) === false) {
+		if (@socket_connect($this->resource, $this->address->address, $this->address->port) === false) {
 			$error	= socket_last_error($this->resource);
 			socket_clear_error($this->resource);
 			throw new InvalidSocketException(
@@ -346,7 +361,67 @@ class Socket
 	}
 
 	/**
-	 * Undocumented function
+	 * Receiving data from stream buffer
+	 *
+	 * @param integer $length
+	 * @param integer $flags
+	 * @param string& $address
+	 * @param integer& $port
+	 *
+	 * @return string
+	 */
+	public function receive(int $length = null, int $flags = 0, string & $address = null, int & $port = null) : ?string
+	{
+		if ($length === null)
+		{
+			$length = static::return_bytes(ini_get('post_max_size'));
+		}
+		if ($this->protocol === SOL_UDP)
+		{
+			socket_recvfrom($this->resource, $buf, $length, $flags, $address, $port);
+			$this->remote = new InetAddr($address, $port);
+		}
+		else
+		{
+			socket_recv($this->resource, $buf, $length, $flags);
+		}
+
+		return $buf;
+	}
+
+	/**
+	 * Sending data onto stream buffer
+	 *
+	 * @param string $buffer
+	 * @param integer $flags
+	 * @param string $address
+	 * @param integer $port
+	 * @return integer
+	 */
+	public function send(string $buffer = null, int $flags = 0, string $address = null, int $port = null) : int
+	{
+		if ($this->protocol === SOL_UDP)
+		{
+			if ($address === null)
+			{
+				$address = $this->remote->address ?? INETADRR::BROADCASTv4;
+			}
+			if ($port === null)
+			{
+				$port = $this->remote->port ?? 0;
+			}
+			$sent_bytes = socket_sendto($this->resource, $buffer, strlen($buffer), $flags, $address, $port);
+		}
+		else
+		{
+			$sent_bytes = socket_send($this->resource, $buffer, strlen($buffer), $flags);
+		}
+
+		return $sent_bytes;
+	}
+
+	/**
+	 * Closing a socket
 	 *
 	 * @return void
 	 */
@@ -355,6 +430,48 @@ class Socket
 		socket_close($this->resource);
 		return;
 	}
+
+	/**
+	 * Converts human readable size to bytes
+	 *
+	 * @param string $val
+	 * @return int
+	 */
+	private static function return_bytes (string $val) : int
+    {
+		if(empty($val))
+		{
+			return 0;
+		}
+
+		$val = trim($val);
+
+        preg_match('/([0-9]+)\s*([a-z]+)/i', $val, $matches);
+
+        $last = '';
+        if(isset($matches[2])){
+            $last = $matches[2];
+        }
+
+        if(isset($matches[1])){
+            $val = (int) $matches[1];
+        }
+
+        switch (strtolower($last))
+        {
+            case 'g':
+            case 'gb':
+                $val *= 1024;
+            case 'm':
+            case 'mb':
+                $val *= 1024;
+            case 'k':
+            case 'kb':
+                $val *= 1024;
+        }
+
+        return (int) $val;
+    }
 
 	// BEGIN: Magic Methods
 

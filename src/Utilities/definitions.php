@@ -2,6 +2,12 @@
 
 
 /**
+ * IP Versions
+ */
+defined("AF_INET")			?: define("AF_INET",			2);		/* IPv4 */
+defined("AF_INET6")			?: define("AF_INET6",			10);	/* IPv6 */
+
+/**
  * Protocols
  */
 defined("SOL_TCP")			?: define("SOL_TCP",			6);		/* TCP protocol */
